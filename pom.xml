@@ -12,6 +12,7 @@
 
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    <java.version>1.8</java.version>
   </properties>
 
   <dependencies>
@@ -43,7 +44,7 @@
     </dependency>
 
 
-    <dependency>
+    <!--<dependency>
       <groupId>com.google.auto.service</groupId>
       <artifactId>auto-service</artifactId>
       <version>1.0-rc4</version>
@@ -62,7 +63,7 @@
       <version>1.8</version>
       <scope>system</scope>
       <systemPath>${java.home}/../lib/tools.jar</systemPath>
-    </dependency>
+    </dependency>-->
 
   </dependencies>
 

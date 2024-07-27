@@ -18,10 +18,11 @@ import java.util.Enumeration;
 import java.util.List;
 
 public class NewTable {
-    private static Logger log = Logger.getLogger(NewTable.class);
+    private static Logger log = Logger.getLogger(NewTable.class); // 日志记录器
 
-    private static List<Class> newC = new ArrayList<>();
-    private static DBHelper db = new DBHelper();
+    private static List<Class> newC = new ArrayList<>(); // 存储找到的带有 @Table 注解的类
+    private static DBHelper db = new DBHelper(); // 数据库操作类实例
+
     public static void createTable() throws ClassNotFoundException, InstantiationException, IllegalAccessException, IOException {
         String packageName = "com";
         String packagePath = System.getProperty("user.dir") + "\\src\\main\\java\\com";
@@ -36,124 +37,128 @@ public class NewTable {
         //@PrimaryKey用来指定主键
         String sql = "";
 
-        for (Class c : newC) {
-            //已经找到所有带@Table的类
-            //现在开始遍历每个类的每个属性并做好拼接
+        for (Class<?> c : newC) {
+            // 已经找到所有带@Table的类
+            // 现在开始遍历每个类的每个属性并做好拼接
             Object o = c.newInstance();
 
-            //表名
+            // 表名
             String tableName = ((Table) c.getAnnotation(Table.class)).value();
-            if (tableName == null || "".equals(tableName)){
+            if (tableName == null || "".equals(tableName)) {
                 tableName = c.getSimpleName();
             }
 
-
             Field[] fields = c.getDeclaredFields();
-            sql = "create table "+tableName+"(";
+            StringBuilder tableSql = new StringBuilder("CREATE TABLE " + tableName + " (");
+
+            StringBuilder foreignKeys = new StringBuilder();
 
             for (Field field : fields) {
-                //判断是否有注解，没有就默认值
+                // 判断是否有注解，没有就默认值
                 Class<?> type = field.getType();
 
-                //属性名
+                // 属性名
                 String fieldName = "";
-                if (field.getAnnotation(com.newtable.annotation.Field.class)==null||"".equals(field.getAnnotation(com.newtable.annotation.Field.class).value())){
-                    //说明没有指定值
+                if (field.getAnnotation(com.newtable.annotation.Field.class) == null || "".equals(field.getAnnotation(com.newtable.annotation.Field.class).value())) {
+                    // 说明没有指定值
                     fieldName = field.getName();
-                }else {
+                } else {
                     fieldName = field.getAnnotation(com.newtable.annotation.Field.class).value();
                 }
 
-                String foreign_table = "";//对应的表
-                String foreign = "";
-                //现在是外键
-                if (field.getAnnotation(com.newtable.annotation.Field.class)!=null&&!"".equals(field.getAnnotation(com.newtable.annotation.Field.class).foreignKey())){
-                    //说明有外键
+                String foreignTable = ""; // 对应的表
+                String foreign = ""; // 外键字段名
+                // 现在是外键
+                if (field.getAnnotation(com.newtable.annotation.Field.class) != null && !"".equals(field.getAnnotation(com.newtable.annotation.Field.class).foreignKey())) {
+                    // 说明有外键
                     String temp = field.getAnnotation(com.newtable.annotation.Field.class).foreignKey();
                     String[] split = temp.split("-");
-                    foreign_table = split[0];
+                    foreignTable = split[0];
                     foreign = split[1];
                 }
 
-
-                if ("int".equals(type) || "java.lang.Integer".equals(type)||"byte".equals(type) || "java.lang.Byte".equals(type)||"short".equals(type) || "java.lang.Short".equals(type)) {
+                if ("int".equals(type.getName()) || "java.lang.Integer".equals(type.getName()) || "byte".equals(type.getName()) || "java.lang.Byte".equals(type.getName()) || "short".equals(type.getName()) || "java.lang.Short".equals(type.getName())) {
                     if (field.getAnnotation(PrimaryKey.class) != null) {
-                        sql +=  fieldName + " int primary key,";
+                        tableSql.append(fieldName).append(" INT PRIMARY KEY AUTO_INCREMENT,");
                     } else {
-                        if (foreign.equals("")){
-                            sql += fieldName + " int,";
-                        }else {
-                            sql += fieldName + " int references "+foreign_table+"("+foreign+"),";
+                        tableSql.append(fieldName).append(" INT,");
+                        if (!foreign.equals("")) {
+                            foreignKeys.append("FOREIGN KEY (").append(fieldName).append(") REFERENCES ").append(foreignTable).append("(").append(foreign).append("),");
                         }
                     }
-
-                } else if ("double".equals(type) || "java.lang.Double".equals(type)||"float".equals(type) || "java.lang.Float".equals(type)) {
+                } else if ("double".equals(type.getName()) || "java.lang.Double".equals(type.getName()) || "float".equals(type.getName()) || "java.lang.Float".equals(type.getName())) {
                     if (field.getAnnotation(PrimaryKey.class) != null) {
-                        sql += fieldName + " double primary key,";
+                        tableSql.append(fieldName).append(" DOUBLE PRIMARY KEY AUTO_INCREMENT,");
                     } else {
-                        if (foreign.equals("")){
-                            sql += fieldName + " double,";
-                        }else {
-                            sql += fieldName + " double references "+foreign_table+"("+foreign+"),";
+                        tableSql.append(fieldName).append(" DOUBLE,");
+                        if (!foreign.equals("")) {
+                            foreignKeys.append("FOREIGN KEY (").append(fieldName).append(") REFERENCES ").append(foreignTable).append("(").append(foreign).append("),");
                         }
                     }
                 } else {
                     if (field.getAnnotation(PrimaryKey.class) != null) {
-                        sql += fieldName + " varchar(255) primary key,";
+                        tableSql.append(fieldName).append(" VARCHAR(255) PRIMARY KEY AUTO_INCREMENT,");
                     } else {
-                        if (foreign.equals("")){
-                            sql += fieldName + " varchar(255),";
-                        }else {
-                            sql += fieldName + " varchar(255) references "+foreign_table+"("+foreign+"),";
+                        tableSql.append(fieldName).append(" VARCHAR(255),");
+                        if (!foreign.equals("")) {
+                            foreignKeys.append("FOREIGN KEY (").append(fieldName).append(") REFERENCES ").append(foreignTable).append("(").append(foreign).append("),");
                         }
                     }
                 }
             }
-            sql = sql.substring(0, sql.length() - 1)+")";
+
+            // 移除最后一个逗号
+            tableSql.setLength(tableSql.length() - 1);
+
+            // 添加外键约束
+            if (foreignKeys.length() > 0) {
+                tableSql.append(", ").append(foreignKeys.toString().substring(0, foreignKeys.length() - 1));
+            }
+
+            tableSql.append(")");
+
+            sql = tableSql.toString();
             System.out.println(sql);
+            db.doUpdate(sql);
         }
 
 
-        db.doUpdate(sql);
     }
+
 
     private static void findPackageClasses(String packagePath, String packageName) throws UnsupportedEncodingException {
         if (packagePath.startsWith("/")) {
-            packagePath = packagePath.substring(1);
+            packagePath = packagePath.substring(1); // 去掉路径开头的斜杠
         }
-        packagePath = URLDecoder.decode(packagePath, "utf-8");
-        //取这个路径下所有的文件
+        packagePath = URLDecoder.decode(packagePath, "utf-8"); // 防止路径中文，统一转utf-8
+        // 获取路径下所有的文件
         File file = new File(packagePath);
         File[] classFiles = file.listFiles(new FileFilter() {
             @Override
-            public boolean accept(File pathname) {
-                if (pathname instanceof Object || pathname.isDirectory()) {
-                    return true;
-                }else {
-                    return false;
-                }
+            public boolean accept(File pathname) {//过滤文件，只保留文件夹和java类
+                return pathname.isDirectory() || pathname.getName().endsWith(".java"); // 过滤目录和 .java 文件
             }
         });
-        //System.out.println(classFiles);
-        if (classFiles != null && classFiles.length > 0){
+
+        if (classFiles != null && classFiles.length > 0) {
             for (File classFile : classFiles) {
-                if (classFile.isDirectory()){
-                    findPackageClasses(classFile.getAbsolutePath(), packageName + "." + classFile.getName());
-                }else {
-                    if (!classFile.getName().endsWith(".java")){
-                        continue;
+                if (classFile.isDirectory()) {
+                    findPackageClasses(classFile.getAbsolutePath(), packageName + "." + classFile.getName()); // 递归查找目录
+                } else {
+                    if (!classFile.getName().endsWith(".java")) {
+                        continue; // 跳过非 .java 文件
                     }
-                    //是字节码文件·则利用类加载器加载class文件
+                    // 使用类加载器加载 class 文件
                     URLClassLoader uc = new URLClassLoader(new URL[]{});
                     try {
-                        Class cls = uc.loadClass(packageName + "." + classFile.getName().replaceAll(".java", ""));
-                        Annotation[] annotations = cls.getAnnotations();
-                        if (cls.getAnnotation(Table.class)!=null){
-                            log.info(cls);
-                            newC.add(cls);
+                        //loadClass只能用java下面的包.xx来找想要的java类
+                        Class cls = uc.loadClass(packageName + "." + classFile.getName().replace(".java", ""));
+                        if (cls.getAnnotation(Table.class) != null) {
+                            log.info(cls); // 记录找到的类
+                            newC.add(cls); // 添加到列表
                         }
-                    }catch (Exception e){
-                        e.printStackTrace();
+                    } catch (Exception e) {
+                        e.printStackTrace(); // 处理异常
                     }
                 }
             }

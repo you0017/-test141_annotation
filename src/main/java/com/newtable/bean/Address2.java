@@ -5,11 +5,11 @@ import com.newtable.annotation.PrimaryKey;
 import com.newtable.annotation.Table;
 
 @Table
-public class Address {
+public class Address2 {
 
     @PrimaryKey
     private Integer id;
-    @Field(value = "heiheihei")
+    @Field(value = "heiheihei",foreignKey = "address-id")
     private Integer userId;    //用户id
     private String province;    //省
     private String city;        //市

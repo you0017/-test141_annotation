@@ -11,5 +11,5 @@ import java.lang.annotation.Target;
 @Retention(RetentionPolicy.RUNTIME)
 public @interface Field {
     public String value();//可以指定属性名 //不写就自己原名
-    public String foreignKey() default "";//外键  格式是  表明-键
+    public String foreignKey() default "";//外键  格式是  表名-键
 }
